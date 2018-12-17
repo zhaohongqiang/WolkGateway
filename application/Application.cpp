@@ -18,12 +18,19 @@
 #include "Wolk.h"
 #include "protocol/json/JsonGatewayDataProtocol.h"
 #include "utilities/ConsoleLogger.h"
+#include "utilities/FileSystemUtils.h"
 #include "utilities/StringUtils.h"
 
 #include <chrono>
 #include <stdexcept>
 #include <string>
 #include <thread>
+
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace
 {
@@ -56,7 +63,72 @@ wolkabout::LogLevel parseLogLevel(const std::string& levelStr)
 }
 }    // namespace
 
-int main(int argc, char** argv)
+namespace example
+{
+class BasicUrlFileDownloader : public wolkabout::UrlFileDownloader
+{
+public:
+    void download(const std::string& url, const std::string& downloadDirectory,
+                  std::function<void(const std::string& filePath)> onSuccessCallback,
+                  std::function<void(UrlFileDownloader::Error errorCode)> onFailCallback) override
+    {
+        if (wolkabout::FileSystemUtils::isFilePresent(url))
+        {
+            wolkabout::ByteArray content;
+            if (wolkabout::FileSystemUtils::readBinaryFileContent(url, content))
+            {
+                static int firmwareFileNum = 0;
+                const std::string filePath =
+                  downloadDirectory + "/new_firmware_file" + std::to_string(++firmwareFileNum);
+                if (wolkabout::FileSystemUtils::createBinaryFileWithContent(filePath, content))
+                {
+                    onSuccessCallback(filePath);
+                    return;
+                }
+            }
+        }
+
+        onFailCallback(Error::UNSPECIFIED_ERROR);
+    }
+
+    void abort() override {}
+};
+
+class BasicFirmwareInstaller : public wolkabout::FirmwareInstaller
+{
+public:
+    BasicFirmwareInstaller(int argc, char** argv, char** envp) : m_argc{argc}, m_argv{argv}, m_envp{envp} {}
+
+    bool install(const std::string& firmwareFile) override
+    {
+        LOG(INFO) << "Installing gateway firmware: " << firmwareFile;
+
+        unlink(m_argv[0]);
+
+        //        std::string newExe = std::string(m_argv[0]) + "_dfu";
+
+        //        std::rename(firmwareFile.c_str(), newExe.c_str());
+
+        //        chmod(newExe.c_str(), S_IRWXU|S_IRWXG|S_IRWXO);
+
+        //        char * argv[] = {(char*)newExe.c_str(), nullptr};
+        //        char * envp[] = {nullptr};
+
+        auto ret = execve(m_argv[0], m_argv, m_envp);
+
+        LOG(ERROR) << std::strerror(errno);
+
+        return ret != -1;
+    }
+
+private:
+    int m_argc;
+    char** m_argv;
+    char** m_envp;
+};
+}    // namespace example
+
+int main(int argc, char** argv, char** envp)
 {
     setupLogger();
 
@@ -93,12 +165,19 @@ int main(int argc, char** argv)
 
     auto dataProtocol = std::unique_ptr<wolkabout::JsonGatewayDataProtocol>(new wolkabout::JsonGatewayDataProtocol());
 
-    wolkabout::Device device(gatewayConfiguration.getKey(), gatewayConfiguration.getPassword(),
-                             dataProtocol->getName());
+    wolkabout::ActuatorManifest am{"name", "REF", wolkabout::DataType::NUMERIC, ""};
+
+    auto installer = std::make_shared<example::BasicFirmwareInstaller>(argc, argv, envp);
+    auto urlDownloader = std::make_shared<example::BasicUrlFileDownloader>();
+
+    wolkabout::Device device(
+      gatewayConfiguration.getKey(), gatewayConfiguration.getPassword(),
+      wolkabout::DeviceManifest{"EmptyManifest", "", dataProtocol->getName(), "DFU", {}, {}, {}, {am}});
     auto builder = wolkabout::Wolk::newBuilder(device)
                      .withDataProtocol(std::move(dataProtocol))
                      .gatewayHost(gatewayConfiguration.getLocalMqttUri())
-                     .platformHost(gatewayConfiguration.getPlatformMqttUri());
+                     .platformHost(gatewayConfiguration.getPlatformMqttUri())
+                     .withFirmwareUpdate("1.0.0", installer, ".", 10 * 1024 * 1024, 1024, urlDownloader);
 
     if (gatewayConfiguration.getKeepAliveEnabled() && !gatewayConfiguration.getKeepAliveEnabled().value())
     {
@@ -113,6 +192,7 @@ int main(int argc, char** argv)
     std::unique_ptr<wolkabout::Wolk> wolk = builder.build();
 
     wolk->connect();
+
     while (true)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
