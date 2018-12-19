@@ -63,6 +63,8 @@ wolkabout::LogLevel parseLogLevel(const std::string& levelStr)
 }
 }    // namespace
 
+int firmwareVersionNumber = 1;
+
 namespace example
 {
 class BasicUrlFileDownloader : public wolkabout::UrlFileDownloader
@@ -103,7 +105,7 @@ public:
     {
         LOG(INFO) << "Installing gateway firmware: " << firmwareFile;
 
-        unlink(m_argv[0]);
+        //        unlink(m_argv[0]);
 
         //        std::string newExe = std::string(m_argv[0]) + "_dfu";
 
@@ -113,6 +115,13 @@ public:
 
         //        char * argv[] = {(char*)newExe.c_str(), nullptr};
         //        char * envp[] = {nullptr};
+
+        if (m_argc > 3)
+        {
+            int version = std::stoi(m_argv[3]);
+            ++version;
+            m_argv[3] = (char*)std::to_string(version).c_str();
+        }
 
         auto ret = execve(m_argv[0], m_argv, m_envp);
 
@@ -163,6 +172,13 @@ int main(int argc, char** argv, char** envp)
         }
     }
 
+    if (argc > 3)
+    {
+        firmwareVersionNumber = std::stoi(argv[3]);
+    }
+
+    std::string firmwareVersion = std::to_string(firmwareVersionNumber) + ".0.0";
+
     auto dataProtocol = std::unique_ptr<wolkabout::JsonGatewayDataProtocol>(new wolkabout::JsonGatewayDataProtocol());
 
     wolkabout::ActuatorManifest am{"name", "REF", wolkabout::DataType::NUMERIC, ""};
@@ -177,7 +193,7 @@ int main(int argc, char** argv, char** envp)
                      .withDataProtocol(std::move(dataProtocol))
                      .gatewayHost(gatewayConfiguration.getLocalMqttUri())
                      .platformHost(gatewayConfiguration.getPlatformMqttUri())
-                     .withFirmwareUpdate("1.0.0", installer, ".", 10 * 1024 * 1024, 1024, urlDownloader);
+                     .withFirmwareUpdate(firmwareVersion, installer, ".", 10 * 1024 * 1024, 1024, urlDownloader);
 
     if (gatewayConfiguration.getKeepAliveEnabled() && !gatewayConfiguration.getKeepAliveEnabled().value())
     {
