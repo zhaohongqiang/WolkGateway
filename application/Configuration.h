@@ -14,23 +14,33 @@
  * limitations under the License.
  */
 
+#include "model/Device.h"
 #include "model/WolkOptional.h"
 #include <string>
 
 namespace wolkabout
 {
+enum class ValueGenerator
+{
+    RANDOM = 0,
+    INCEREMENTAL
+};
+
 class GatewayConfiguration
 {
 public:
     GatewayConfiguration() = default;
 
-    GatewayConfiguration(std::string key, std::string password, std::string platformMqttUri, std::string localMqttUri);
+    GatewayConfiguration(wolkabout::Device device, std::string platformMqttUri, std::string localMqttUri,
+                         unsigned interval, ValueGenerator generator);
 
-    const std::string& getKey() const;
-    const std::string& getPassword() const;
+    const wolkabout::Device& getDevice() const;
 
     const std::string& getPlatformMqttUri() const;
     const std::string& getLocalMqttUri() const;
+
+    unsigned getInterval() const;
+    ValueGenerator getValueGenerator() const;
 
     void setKeepAliveEnabled(bool value);
     const WolkOptional<bool>& getKeepAliveEnabled() const;
@@ -41,11 +51,13 @@ public:
     static wolkabout::GatewayConfiguration fromJson(const std::string& gatewayConfigurationFile);
 
 private:
-    std::string m_key;
-    std::string m_password;
+    wolkabout::Device m_device;
 
     std::string m_platformMqttUri;
     std::string m_localMqttUri;
+
+    unsigned m_interval;
+    ValueGenerator m_valueGenerator;
 
     WolkOptional<bool> m_keepAliveEnabled;
     WolkOptional<std::string> m_platformTrustStore;

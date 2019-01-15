@@ -15,6 +15,7 @@
  */
 
 #include "Configuration.h"
+#include "protocol/json/JsonDto.h"
 #include "utilities/FileSystemUtils.h"
 #include "utilities/json.hpp"
 
@@ -33,23 +34,19 @@ const std::string GatewayConfiguration::PLATFORM_TRUST_STORE = "platformTrustSto
 const std::string GatewayConfiguration::LOCAL_URI = "localMqttUri";
 const std::string GatewayConfiguration::KEEP_ALIVE = "keepAlive";
 
-GatewayConfiguration::GatewayConfiguration(std::string key, std::string password, std::string platformMqttUri,
-                                           std::string localMqttUri)
-: m_key(std::move(key))
-, m_password(std::move(password))
+GatewayConfiguration::GatewayConfiguration(wolkabout::Device device, std::string platformMqttUri,
+                                           std::string localMqttUri, unsigned interval, ValueGenerator generator)
+: m_device(std::move(device))
 , m_platformMqttUri(std::move(platformMqttUri))
 , m_localMqttUri(std::move(localMqttUri))
+, m_interval(interval)
+, m_valueGenerator(generator)
 {
 }
 
-const std::string& GatewayConfiguration::getKey() const
+const wolkabout::Device& GatewayConfiguration::getDevice() const
 {
-    return m_key;
-}
-
-const std::string& GatewayConfiguration::getPassword() const
-{
-    return m_password;
+    return m_device;
 }
 
 const std::string& GatewayConfiguration::getLocalMqttUri() const
@@ -60,6 +57,16 @@ const std::string& GatewayConfiguration::getLocalMqttUri() const
 const std::string& GatewayConfiguration::getPlatformMqttUri() const
 {
     return m_platformMqttUri;
+}
+
+unsigned GatewayConfiguration::getInterval() const
+{
+    return m_interval;
+}
+
+ValueGenerator GatewayConfiguration::getValueGenerator() const
+{
+    return m_valueGenerator;
 }
 
 void GatewayConfiguration::setPlatformTrustStore(const std::string& value)
@@ -101,7 +108,34 @@ wolkabout::GatewayConfiguration GatewayConfiguration::fromJson(const std::string
     const auto platformMqttUri = j.at(PLATFORM_URI).get<std::string>();
     const auto localMqttUri = j.at(LOCAL_URI).get<std::string>();
 
-    GatewayConfiguration configuration(key, password, platformMqttUri, localMqttUri);
+    wolkabout::DeviceManifest manifest{"name", "", "JsonProtocol", ""};
+    try
+    {
+        manifest = j.at("manifest").get<wolkabout::DeviceManifest>();
+    }
+    catch (...)
+    {
+    }
+
+    unsigned interval = 1000;
+    if (j.find("readingsInterval") != j.end())
+    {
+        interval = j.at("readingsInterval").get<unsigned>();
+    }
+
+    ValueGenerator valueGenerator = ValueGenerator::RANDOM;
+    if (j.find("generator") != j.end())
+    {
+        const auto gen = j.at("generator").get<std::string>();
+        if (gen == "incremental")
+        {
+            valueGenerator = ValueGenerator::INCEREMENTAL;
+        }
+    }
+
+    wolkabout::Device device{key, password, manifest};
+
+    GatewayConfiguration configuration(device, platformMqttUri, localMqttUri, interval, valueGenerator);
 
     if (j.find(KEEP_ALIVE) != j.end())
     {

@@ -29,6 +29,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
+#include <random>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -67,6 +68,56 @@ int firmwareVersionNumber = 1;
 
 namespace example
 {
+class ActuatorHandler
+{
+public:
+    virtual ~ActuatorHandler() = default;
+    virtual std::string getValue() = 0;
+    virtual void setValue(std::string value) = 0;
+};
+
+template <class T> class ActuatorTemplateHandler : public ActuatorHandler
+{
+public:
+    void setValue(std::string value) override
+    {
+        try
+        {
+            m_value = std::stod(value);
+        }
+        catch (...)
+        {
+        }
+    }
+
+    std::string getValue() override { return std::to_string(m_value); }
+
+private:
+    T m_value;
+};
+
+template <> class ActuatorTemplateHandler<bool> : public ActuatorHandler
+{
+public:
+    void setValue(std::string value) override { m_value = value == "true"; }
+
+    std::string getValue() override { return m_value ? "true" : "false"; }
+
+private:
+    bool m_value;
+};
+
+template <> class ActuatorTemplateHandler<std::string> : public ActuatorHandler
+{
+public:
+    void setValue(std::string value) override { m_value = value; }
+
+    std::string getValue() override { return m_value; }
+
+private:
+    std::string m_value;
+};
+
 class BasicUrlFileDownloader : public wolkabout::UrlFileDownloader
 {
 public:
@@ -178,23 +229,72 @@ int main(int argc, char** argv, char** envp)
         firmwareVersionNumber = std::stoi(argv[3]);
     }
 
+    std::map<std::string, std::shared_ptr<example::ActuatorHandler>> handlers;
+    for (const auto& actuator : gatewayConfiguration.getDevice().getManifest().getActuators())
+    {
+        std::shared_ptr<example::ActuatorHandler> handler;
+        switch (actuator.getDataType())
+        {
+        case wolkabout::DataType::BOOLEAN:
+        {
+            handler.reset(new example::ActuatorTemplateHandler<bool>());
+            break;
+        }
+        case wolkabout::DataType::NUMERIC:
+        {
+            handler.reset(new example::ActuatorTemplateHandler<double>());
+            break;
+        }
+        case wolkabout::DataType::STRING:
+        {
+            handler.reset(new example::ActuatorTemplateHandler<std::string>());
+            break;
+        }
+        }
+
+        handlers[actuator.getReference()] = handler;
+    }
+
+    std::vector<wolkabout::ConfigurationItem> localConfiguration;
+    for (const auto& conf : gatewayConfiguration.getDevice().getManifest().getConfigurations())
+    {
+        localConfiguration.push_back(wolkabout::ConfigurationItem{
+          std::vector<std::string>(conf.getSize(), conf.getDefaultValue()), conf.getReference()});
+    }
+
     std::string firmwareVersion = std::to_string(firmwareVersionNumber) + ".0.0";
 
     auto dataProtocol = std::unique_ptr<wolkabout::JsonGatewayDataProtocol>(new wolkabout::JsonGatewayDataProtocol());
 
-    wolkabout::ActuatorManifest am{"name", "REF", wolkabout::DataType::NUMERIC, ""};
-
     auto installer = std::make_shared<example::BasicFirmwareInstaller>(argc, argv, envp);
     auto urlDownloader = std::make_shared<example::BasicUrlFileDownloader>();
 
-    wolkabout::Device device(
-      gatewayConfiguration.getKey(), gatewayConfiguration.getPassword(),
-      wolkabout::DeviceManifest{"EmptyManifest", "", dataProtocol->getName(), "DFU", {}, {}, {}, {am}});
-    auto builder = wolkabout::Wolk::newBuilder(device)
-                     .withDataProtocol(std::move(dataProtocol))
-                     .gatewayHost(gatewayConfiguration.getLocalMqttUri())
-                     .platformHost(gatewayConfiguration.getPlatformMqttUri())
-                     .withFirmwareUpdate(firmwareVersion, installer, ".", 10 * 1024 * 1024, 1024, urlDownloader);
+    auto builder =
+      wolkabout::Wolk::newBuilder(gatewayConfiguration.getDevice())
+        .actuationHandler([&](const std::string& reference, const std::string& value) -> void {
+            LOG(INFO) << "Actuation request received -  Reference: " << reference << " value: " << value;
+
+            auto it = handlers.find(reference);
+            if (it != handlers.end())
+            {
+                it->second->setValue(value);
+            }
+        })
+        .actuatorStatusProvider([&](const std::string& reference) -> wolkabout::ActuatorStatus {
+            auto it = handlers.find(reference);
+            if (it != handlers.end())
+            {
+                return wolkabout::ActuatorStatus(it->second->getValue(), wolkabout::ActuatorStatus::State::READY);
+            }
+
+            return wolkabout::ActuatorStatus("", wolkabout::ActuatorStatus::State::ERROR);
+        })
+        .configurationHandler(
+          [&](const std::vector<wolkabout::ConfigurationItem>& configuration) { localConfiguration = configuration; })
+        .configurationProvider([&]() -> std::vector<wolkabout::ConfigurationItem> { return localConfiguration; })
+        .withDataProtocol(std::move(dataProtocol))
+        .gatewayHost(gatewayConfiguration.getLocalMqttUri())
+        .platformHost(gatewayConfiguration.getPlatformMqttUri());
 
     if (gatewayConfiguration.getKeepAliveEnabled() && !gatewayConfiguration.getKeepAliveEnabled().value())
     {
@@ -206,13 +306,49 @@ int main(int argc, char** argv, char** envp)
         builder.platformTrustStore(gatewayConfiguration.getPlatformTrustStore().value());
     }
 
+    if (!gatewayConfiguration.getDevice().getManifest().getFirmwareUpdateType().empty())
+    {
+        builder.withFirmwareUpdate(firmwareVersion, installer, ".", 10 * 1024 * 1024, 1024, urlDownloader);
+    }
+
     std::unique_ptr<wolkabout::Wolk> wolk = builder.build();
 
     wolk->connect();
 
+    std::random_device rd;
+    std::mt19937 mt(rd());
+
     while (true)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        for (const auto& sensor : gatewayConfiguration.getDevice().getManifest().getSensors())
+        {
+            std::vector<int> values;
+
+            if (gatewayConfiguration.getValueGenerator() == wolkabout::ValueGenerator::INCEREMENTAL)
+            {
+                static int value = 0;
+                for (size_t i = 0; i < sensor.getSize(); ++i)
+                {
+                    values.push_back(++value);
+                }
+            }
+            else
+            {
+                std::uniform_int_distribution<int> dist(sensor.getMinimum(), sensor.getMaximum());
+
+                for (size_t i = 0; i < sensor.getSize(); ++i)
+                {
+                    int rand_num = dist(mt);
+                    values.push_back(rand_num);
+                }
+            }
+
+            wolk->addSensorReading(sensor.getReference(), values);
+        }
+
+        wolk->publish();
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(gatewayConfiguration.getInterval()));
     }
 
     return 0;
