@@ -70,9 +70,10 @@ namespace example
 class BasicUrlFileDownloader : public wolkabout::UrlFileDownloader
 {
 public:
-    void download(const std::string& url, const std::string& downloadDirectory,
-                  std::function<void(const std::string& filePath)> onSuccessCallback,
-                  std::function<void(UrlFileDownloader::Error errorCode)> onFailCallback) override
+    void download(
+      const std::string& url, const std::string& downloadDirectory,
+      std::function<void(const std::string& url, const std::string& filePath)> onSuccessCallback,
+      std::function<void(const std::string& url, UrlFileDownloader::Error errorCode)> onFailCallback) override
     {
         if (wolkabout::FileSystemUtils::isFilePresent(url))
         {
@@ -84,16 +85,16 @@ public:
                   downloadDirectory + "/new_firmware_file" + std::to_string(++firmwareFileNum);
                 if (wolkabout::FileSystemUtils::createBinaryFileWithContent(filePath, content))
                 {
-                    onSuccessCallback(filePath);
+                    onSuccessCallback(url, filePath);
                     return;
                 }
             }
         }
 
-        onFailCallback(Error::UNSPECIFIED_ERROR);
+        onFailCallback(url, Error::UNSPECIFIED_ERROR);
     }
 
-    void abort() override {}
+    void abort(const std::string& url) override {}
 };
 
 class BasicFirmwareInstaller : public wolkabout::FirmwareInstaller
