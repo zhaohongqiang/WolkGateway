@@ -19,19 +19,18 @@
 
 #include "ActuationHandler.h"
 #include "ActuatorStatusProvider.h"
-#include "ChannelProtocolResolver.h"
 #include "ConfigurationHandler.h"
 #include "ConfigurationProvider.h"
 #include "GatewayInboundDeviceMessageHandler.h"
 #include "WolkBuilder.h"
-#include "model/Device.h"
+#include "model/GatewayDevice.h"
 #include "persistence/inmemory/InMemoryPersistence.h"
 #include "protocol/DataProtocol.h"
 #include "protocol/GatewayDataProtocol.h"
-#include "protocol/GatewayDeviceRegistrationProtocol.h"
 #include "protocol/GatewayFileDownloadProtocol.h"
 #include "protocol/GatewayFirmwareUpdateProtocol.h"
 #include "protocol/GatewayStatusProtocol.h"
+#include "protocol/GatewaySubdeviceRegistrationProtocol.h"
 #include "repository/DeviceRepository.h"
 #include "repository/ExistingDevicesRepository.h"
 #include "service/DataService.h"
@@ -58,25 +57,27 @@ class InboundPlatformMessageHandler;
 class DeviceManager;
 class OutboundServiceDataHandler;
 class DataServiceBase;
-class DeviceRegistrationService;
+class GatewayUpdateService;
+class SubdeviceRegistrationService;
 class FileDownloadService;
 class FirmwareUpdateService;
 class KeepAliveService;
 class StatusMessageRouter;
+class RegistrationMessageRouter;
 
 class Wolk
 {
     friend class WolkBuilder;
 
 public:
-    virtual ~Wolk() = default;
+    virtual ~Wolk();
 
     /**
      * @brief Initiates wolkabout::WolkBuilder that configures device to connect to WolkAbout IoT Cloud
      * @param device wolkabout::Device
      * @return wolkabout::WolkBuilder instance
      */
-    static WolkBuilder newBuilder(Device device);
+    static WolkBuilder newBuilder(GatewayDevice device);
 
     /**
      * @brief connect Establishes connection with WolkAbout IoT platform
@@ -212,7 +213,7 @@ public:
 private:
     static const constexpr std::chrono::seconds KEEP_ALIVE_INTERVAL{600};
 
-    Wolk(Device device);
+    Wolk(GatewayDevice device);
 
     void addToCommandBuffer(std::function<void()> command);
 
@@ -231,9 +232,6 @@ private:
 
     void publishFirmwareStatus();
 
-    std::string getSensorDelimiter(const std::string& reference);
-    std::map<std::string, std::string> getConfigurationDelimiters();
-
     void notifyPlatformConnected();
     void notifyPlatformDisonnected();
     void notifyDevicesConnected();
@@ -242,19 +240,13 @@ private:
     void connectToPlatform();
     void connectToDevices();
 
-    void routePlatformData(const std::string& protocol, std::shared_ptr<Message> message);
-    void routeDeviceData(const std::string& protocol, std::shared_ptr<Message> message);
-
-    void registerDataProtocol(std::shared_ptr<GatewayDataProtocol> protocol,
-                              std::shared_ptr<DataService> dataService = nullptr);
-
     void requestActuatorStatusesForDevices();
     void requestActuatorStatusesForDevice(const std::string& deviceKey);
 
-    Device m_device;
+    GatewayDevice m_device;
 
     std::unique_ptr<GatewayStatusProtocol> m_statusProtocol;
-    std::unique_ptr<GatewayDeviceRegistrationProtocol> m_registrationProtocol;
+    std::unique_ptr<GatewaySubdeviceRegistrationProtocol> m_registrationProtocol;
     std::unique_ptr<GatewayFileDownloadProtocol> m_fileDownloadProtocol;
     std::unique_ptr<GatewayFirmwareUpdateProtocol> m_firmwareUpdateProtocol;
 
@@ -270,15 +262,16 @@ private:
     std::unique_ptr<PublishingService> m_platformPublisher;
     std::unique_ptr<PublishingService> m_devicePublisher;
 
-    std::map<std::string, std::tuple<std::shared_ptr<DataService>, std::shared_ptr<GatewayDataProtocol>,
-                                     std::shared_ptr<ChannelProtocolResolver>>>
-      m_dataServices;
+    std::shared_ptr<DataService> m_dataService;
+    std::unique_ptr<GatewayDataProtocol> m_dataProtocol;
 
     std::unique_ptr<GatewayDataService> m_gatewayDataService;
     std::unique_ptr<Persistence> m_gatewayPersistence;
     std::unique_ptr<DataProtocol> m_gatewayDataProtocol;
 
-    std::shared_ptr<DeviceRegistrationService> m_deviceRegistrationService;
+    std::shared_ptr<GatewayUpdateService> m_gatewayUpdateService;
+    std::shared_ptr<SubdeviceRegistrationService> m_subdeviceRegistrationService;
+    std::shared_ptr<RegistrationMessageRouter> m_registrationMessageRouter;
     std::shared_ptr<KeepAliveService> m_keepAliveService;
 
     std::shared_ptr<DeviceStatusService> m_deviceStatusService;

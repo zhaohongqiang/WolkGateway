@@ -199,16 +199,17 @@ int main(int argc, char** argv, char** envp)
         return -1;
     }
 
-    wolkabout::GatewayConfiguration gatewayConfiguration;
-    try
-    {
-        gatewayConfiguration = wolkabout::GatewayConfiguration::fromJson(argv[1]);
-    }
-    catch (std::logic_error& e)
-    {
-        LOG(ERROR) << "WolkGateway Application: Unable to parse gateway configuration file. Reason: " << e.what();
-        return -1;
-    }
+    wolkabout::GatewayConfiguration gatewayConfiguration = [&] {
+        try
+        {
+            return wolkabout::GatewayConfiguration::fromJson(argv[1]);
+        }
+        catch (std::logic_error& e)
+        {
+            LOG(ERROR) << "WolkGateway Application: Unable to parse gateway configuration file. Reason: " << e.what();
+            std::exit(-1);
+        }
+    }();
 
     if (argc > 2)
     {
@@ -230,7 +231,7 @@ int main(int argc, char** argv, char** envp)
     }
 
     std::map<std::string, std::shared_ptr<example::ActuatorHandler>> handlers;
-    for (const auto& actuator : gatewayConfiguration.getDevice().getManifest().getActuators())
+    for (const auto& actuator : gatewayConfiguration.getDevice().getTemplate().getActuators())
     {
         std::shared_ptr<example::ActuatorHandler> handler;
         switch (actuator.getDataType())
@@ -256,15 +257,13 @@ int main(int argc, char** argv, char** envp)
     }
 
     std::vector<wolkabout::ConfigurationItem> localConfiguration;
-    for (const auto& conf : gatewayConfiguration.getDevice().getManifest().getConfigurations())
+    for (const auto& conf : gatewayConfiguration.getDevice().getTemplate().getConfigurations())
     {
         localConfiguration.push_back(wolkabout::ConfigurationItem{
           std::vector<std::string>(conf.getSize(), conf.getDefaultValue()), conf.getReference()});
     }
 
     std::string firmwareVersion = std::to_string(firmwareVersionNumber) + ".0.0";
-
-    auto dataProtocol = std::unique_ptr<wolkabout::JsonGatewayDataProtocol>(new wolkabout::JsonGatewayDataProtocol());
 
     auto installer = std::make_shared<example::BasicFirmwareInstaller>(argc, argv, envp);
     auto urlDownloader = std::make_shared<example::BasicUrlFileDownloader>();
@@ -292,7 +291,6 @@ int main(int argc, char** argv, char** envp)
         .configurationHandler(
           [&](const std::vector<wolkabout::ConfigurationItem>& configuration) { localConfiguration = configuration; })
         .configurationProvider([&]() -> std::vector<wolkabout::ConfigurationItem> { return localConfiguration; })
-        .withDataProtocol(std::move(dataProtocol))
         .gatewayHost(gatewayConfiguration.getLocalMqttUri())
         .platformHost(gatewayConfiguration.getPlatformMqttUri());
 
@@ -306,7 +304,7 @@ int main(int argc, char** argv, char** envp)
         builder.platformTrustStore(gatewayConfiguration.getPlatformTrustStore().value());
     }
 
-    if (!gatewayConfiguration.getDevice().getManifest().getFirmwareUpdateType().empty())
+    if (!gatewayConfiguration.getDevice().getTemplate().getFirmwareUpdateType().empty())
     {
         builder.withFirmwareUpdate(firmwareVersion, installer, ".", 10 * 1024 * 1024, 1024, urlDownloader);
     }
@@ -320,14 +318,14 @@ int main(int argc, char** argv, char** envp)
 
     while (true)
     {
-        for (const auto& sensor : gatewayConfiguration.getDevice().getManifest().getSensors())
+        for (const auto& sensor : gatewayConfiguration.getDevice().getTemplate().getSensors())
         {
             std::vector<int> values;
 
             if (gatewayConfiguration.getValueGenerator() == wolkabout::ValueGenerator::INCEREMENTAL)
             {
                 static int value = 0;
-                for (size_t i = 0; i < sensor.getSize(); ++i)
+                //                for (size_t i = 0; i < sensor.getSize(); ++i)
                 {
                     values.push_back(++value);
                 }
@@ -336,7 +334,7 @@ int main(int argc, char** argv, char** envp)
             {
                 std::uniform_int_distribution<int> dist(sensor.getMinimum(), sensor.getMaximum());
 
-                for (size_t i = 0; i < sensor.getSize(); ++i)
+                //                for (size_t i = 0; i < sensor.getSize(); ++i)
                 {
                     int rand_num = dist(mt);
                     values.push_back(rand_num);

@@ -19,6 +19,7 @@
 #include "utilities/FileSystemUtils.h"
 #include "utilities/json.hpp"
 
+#include <algorithm>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -33,8 +34,9 @@ const std::string GatewayConfiguration::PLATFORM_URI = "platformMqttUri";
 const std::string GatewayConfiguration::PLATFORM_TRUST_STORE = "platformTrustStore";
 const std::string GatewayConfiguration::LOCAL_URI = "localMqttUri";
 const std::string GatewayConfiguration::KEEP_ALIVE = "keepAlive";
+const std::string GatewayConfiguration::SUBDEVICE_MANAGEMENT = "subdeviceManagement";
 
-GatewayConfiguration::GatewayConfiguration(wolkabout::Device device, std::string platformMqttUri,
+GatewayConfiguration::GatewayConfiguration(wolkabout::GatewayDevice device, std::string platformMqttUri,
                                            std::string localMqttUri, unsigned interval, ValueGenerator generator)
 : m_device(std::move(device))
 , m_platformMqttUri(std::move(platformMqttUri))
@@ -44,7 +46,7 @@ GatewayConfiguration::GatewayConfiguration(wolkabout::Device device, std::string
 {
 }
 
-const wolkabout::Device& GatewayConfiguration::getDevice() const
+const wolkabout::GatewayDevice& GatewayConfiguration::getDevice() const
 {
     return m_device;
 }
@@ -107,15 +109,35 @@ wolkabout::GatewayConfiguration GatewayConfiguration::fromJson(const std::string
     const auto password = j.at(PASSWORD).get<std::string>();
     const auto platformMqttUri = j.at(PLATFORM_URI).get<std::string>();
     const auto localMqttUri = j.at(LOCAL_URI).get<std::string>();
+    auto subdeviceManagement = j.at(SUBDEVICE_MANAGEMENT).get<std::string>();
 
-    wolkabout::DeviceManifest manifest{"name", "", "JsonProtocol", ""};
+    std::transform(subdeviceManagement.begin(), subdeviceManagement.end(), subdeviceManagement.begin(), ::toupper);
+
+    SubdeviceManagement management;
+
+    if (subdeviceManagement == "PLATFORM")
+    {
+        management = SubdeviceManagement::PLATFORM;
+    }
+    else if (subdeviceManagement == "GATEWAY")
+    {
+        management = SubdeviceManagement::GATEWAY;
+    }
+    else
+    {
+        throw std::logic_error("Invalid value for subdevice management.");
+    }
+
+    wolkabout::DeviceTemplate manifest{};
     try
     {
-        manifest = j.at("manifest").get<wolkabout::DeviceManifest>();
+        manifest = j.at("manifest").get<wolkabout::DeviceTemplate>();
     }
     catch (...)
     {
     }
+
+    manifest.addTypeParameter({"subdeviceManagement", static_cast<bool>(management) ? "GATEWAY" : "PLATFORM"});
 
     unsigned interval = 1000;
     if (j.find("readingsInterval") != j.end())
@@ -133,7 +155,7 @@ wolkabout::GatewayConfiguration GatewayConfiguration::fromJson(const std::string
         }
     }
 
-    wolkabout::Device device{key, password, manifest};
+    wolkabout::GatewayDevice device{key, password, manifest};
 
     GatewayConfiguration configuration(device, platformMqttUri, localMqttUri, interval, valueGenerator);
 

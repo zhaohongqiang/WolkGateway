@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 WolkAbout Technology s.r.o.
+ * Copyright 2019 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-#include "model/Device.h"
+#include "model/GatewayDevice.h"
+#include "model/SubdeviceManagement.h"
 #include "model/WolkOptional.h"
 #include <string>
 
@@ -31,10 +32,10 @@ class GatewayConfiguration
 public:
     GatewayConfiguration() = default;
 
-    GatewayConfiguration(wolkabout::Device device, std::string platformMqttUri, std::string localMqttUri,
+    GatewayConfiguration(wolkabout::GatewayDevice device, std::string platformMqttUri, std::string localMqttUri,
                          unsigned interval, ValueGenerator generator);
 
-    const wolkabout::Device& getDevice() const;
+    const wolkabout::GatewayDevice& getDevice() const;
 
     const std::string& getPlatformMqttUri() const;
     const std::string& getLocalMqttUri() const;
@@ -51,7 +52,7 @@ public:
     static wolkabout::GatewayConfiguration fromJson(const std::string& gatewayConfigurationFile);
 
 private:
-    wolkabout::Device m_device;
+    wolkabout::GatewayDevice m_device;
 
     std::string m_platformMqttUri;
     std::string m_localMqttUri;
@@ -68,5 +69,6 @@ private:
     static const std::string PLATFORM_TRUST_STORE;
     static const std::string LOCAL_URI;
     static const std::string KEEP_ALIVE;
+    static const std::string SUBDEVICE_MANAGEMENT;
 };
 }    // namespace wolkabout

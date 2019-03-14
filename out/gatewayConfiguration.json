@@ -9,6 +9,8 @@
 
     "platformTrustStore": "ca.crt",
 
+    "subdeviceManagement": "gateway",
+
     "readingsInterval":5000,
     "generator":"incremental",
 
