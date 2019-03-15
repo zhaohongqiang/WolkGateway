@@ -111,7 +111,7 @@ SQLiteDeviceRepository::SQLiteDeviceRepository(const std::string& connectionStri
     // Firmware update parameters
     statement
       << "CREATE TABLE IF NOT EXISTS firmware_update_parameters (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, key "
-         "TEXT, value TEXT, device_template_id INTEGER, "
+         "TEXT, value INTEGER, device_template_id INTEGER, "
          "FOREIGN KEY(device_template_id) REFERENCES device_template(id) ON DELETE CASCADE);";
 
     // Device
@@ -126,6 +126,8 @@ SQLiteDeviceRepository::SQLiteDeviceRepository(const std::string& connectionStri
 
 void SQLiteDeviceRepository::save(const DetailedDevice& device)
 {
+    LOG(TRACE) << METHOD_INFO;
+
     std::lock_guard<decltype(m_mutex)> l(m_mutex);
 
     try
@@ -277,6 +279,8 @@ void SQLiteDeviceRepository::save(const DetailedDevice& device)
 
 void SQLiteDeviceRepository::remove(const std::string& deviceKey)
 {
+    LOG(TRACE) << METHOD_INFO;
+
     std::lock_guard<decltype(m_mutex)> l(m_mutex);
 
     try
@@ -318,6 +322,8 @@ void SQLiteDeviceRepository::remove(const std::string& deviceKey)
 
 void SQLiteDeviceRepository::removeAll()
 {
+    LOG(TRACE) << METHOD_INFO;
+
     std::lock_guard<decltype(m_mutex)> l(m_mutex);
 
     const auto deviceKeysFromRepository = findAllDeviceKeys();
@@ -329,6 +335,8 @@ void SQLiteDeviceRepository::removeAll()
 
 std::unique_ptr<DetailedDevice> SQLiteDeviceRepository::findByDeviceKey(const std::string& deviceKey)
 {
+    LOG(TRACE) << METHOD_INFO;
+
     std::lock_guard<decltype(m_mutex)> l(m_mutex);
 
     Poco::UInt64 deviceTemplateId;
@@ -525,7 +533,7 @@ std::unique_ptr<DetailedDevice> SQLiteDeviceRepository::findByDeviceKey(const st
         // Firmware update parameters
 
         std::string firmwareUpdateParameterKey;
-        std::string firmwareUpdateParameterValue;
+        int firmwareUpdateParameterValue;
         statement.reset(*m_session);
         statement << "SELECT key, value FROM firmware_update_parameters WHERE device_template_id=?;",
           useRef(deviceTemplateId), into(firmwareUpdateParameterKey), into(firmwareUpdateParameterValue), range(0, 1);
@@ -537,9 +545,9 @@ std::unique_ptr<DetailedDevice> SQLiteDeviceRepository::findByDeviceKey(const st
                 break;
             }
 
-            bool firmwareUpdateParameterValueBool = (firmwareUpdateParameterValue == "true") ? true : false;
             std::pair<std::string, bool> firmwareUpdateParameterPair;
-            firmwareUpdateParameterPair = std::make_pair(firmwareUpdateParameterKey, firmwareUpdateParameterValueBool);
+            firmwareUpdateParameterPair =
+              std::make_pair(firmwareUpdateParameterKey, static_cast<bool>(firmwareUpdateParameterValue));
             deviceTemplate->addFirmwareUpdateParameter(firmwareUpdateParameterPair);
         }
 
@@ -554,6 +562,8 @@ std::unique_ptr<DetailedDevice> SQLiteDeviceRepository::findByDeviceKey(const st
 
 std::unique_ptr<std::vector<std::string>> SQLiteDeviceRepository::findAllDeviceKeys()
 {
+    LOG(TRACE) << METHOD_INFO;
+
     std::lock_guard<decltype(m_mutex)> l(m_mutex);
 
     auto deviceKeys = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>());
@@ -573,6 +583,8 @@ std::unique_ptr<std::vector<std::string>> SQLiteDeviceRepository::findAllDeviceK
 
 bool SQLiteDeviceRepository::containsDeviceWithKey(const std::string& deviceKey)
 {
+    LOG(TRACE) << METHOD_INFO;
+
     std::lock_guard<decltype(m_mutex)> l(m_mutex);
 
     try
@@ -591,6 +603,8 @@ bool SQLiteDeviceRepository::containsDeviceWithKey(const std::string& deviceKey)
 
 void SQLiteDeviceRepository::update(const DetailedDevice& device)
 {
+    LOG(TRACE) << METHOD_INFO;
+
     std::lock_guard<decltype(m_mutex)> l(m_mutex);
 
     remove(device.getKey());
@@ -692,6 +706,8 @@ std::string SQLiteDeviceRepository::calculateSha256(const std::pair<std::string,
 
 std::string SQLiteDeviceRepository::calculateSha256(const DeviceTemplate& deviceTemplate)
 {
+    LOG(TRACE) << METHOD_INFO;
+
     Poco::Crypto::DigestEngine digestEngine("SHA256");
     digestEngine.update(deviceTemplate.getFirmwareUpdateType());
 
