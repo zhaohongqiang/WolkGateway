@@ -114,7 +114,6 @@
         }
       }
     ],
-    "name": "DEVICE_MANIFEST_NAME_1",
     "description": "DEVICE_MANIFEST_DESCRIPTION_1",
     "firmwareUpdateType": "DFU",
     "typeParameters": {},
