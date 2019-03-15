@@ -234,23 +234,17 @@ int main(int argc, char** argv, char** envp)
     for (const auto& actuator : gatewayConfiguration.getDevice().getTemplate().getActuators())
     {
         std::shared_ptr<example::ActuatorHandler> handler;
-        switch (actuator.getDataType())
-        {
-        case wolkabout::DataType::BOOLEAN:
+        if (actuator.getReadingTypeName() == "SWITCH(ACTUATOR)")
         {
             handler.reset(new example::ActuatorTemplateHandler<bool>());
-            break;
         }
-        case wolkabout::DataType::NUMERIC:
+        else if (actuator.getReadingTypeName() == "COUNT(ACTUATOR)")
         {
             handler.reset(new example::ActuatorTemplateHandler<double>());
-            break;
         }
-        case wolkabout::DataType::STRING:
+        else
         {
             handler.reset(new example::ActuatorTemplateHandler<std::string>());
-            break;
-        }
         }
 
         handlers[actuator.getReference()] = handler;
