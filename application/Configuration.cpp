@@ -128,14 +128,7 @@ wolkabout::GatewayConfiguration GatewayConfiguration::fromJson(const std::string
         throw std::logic_error("Invalid value for subdevice management.");
     }
 
-    wolkabout::DeviceTemplate manifest{};
-    try
-    {
-        manifest = j.at("manifest").get<wolkabout::DeviceTemplate>();
-    }
-    catch (...)
-    {
-    }
+    wolkabout::DeviceTemplate manifest = j.at("manifest").get<wolkabout::DeviceTemplate>();
 
     manifest.addTypeParameter({"subdeviceManagement", static_cast<bool>(management) ? "GATEWAY" : "PLATFORM"});
 
