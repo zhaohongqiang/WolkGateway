@@ -1,31 +1,128 @@
 {
-    "name": "",
-
-    "key": "",
-    "password": "",
-
-    "platformMqttUri": "ssl://api-demo.wolkabout.com:8883",
-    "localMqttUri": "tcp://localhost:1883",
-
-    "platformTrustStore": "ca.crt",
-
-    "subdeviceManagement": "gateway",
-
-    "readingsInterval":5000,
-    "generator":"incremental",
-
-    "manifest":{
-    "actuators":[{"description":"Light dimmer","maximum":115.0,"minimum":0.0,"name":"Slider","reference":"SL","unit":{"readingTypeName":"COUNT(ACTUATOR)","symbol":"count"}},
-{"description":"Light switch","maximum":null,"minimum":null,"name":"Switch","reference":"SW","unit":{"readingTypeName":"SWITCH(ACTUATOR)","symbol":""}},{"description":"Text","maximum":null,"minimum":null,"name":"Message","reference":"MSG","unit":{"readingTypeName":"STRING(ACTUATOR)","symbol":""}}],
-    "alarms":[{"description":"","message":"High Humidity","name":"High Humidity","reference":"HH"}],
-    "configurations":[{"dataType":"STRING","defaultValue":"value1","description":"","labels":null,"maximum":null,"minimum":null,"name":"Item1","reference":"KEY_1","size":1},{"dataType":"NUMERIC","defaultValue":"5","description":"","labels":["x","y","z"],"maximum":100.0,"minimum":0.0,"name":"Item2","reference":"KEY_2","size":3},{"dataType":"BOOLEAN","defaultValue":"false","description":"","labels":null,"maximum":null,"minimum":null,"name":"Item3","reference":"KEY_3","size":1}],
-    "sensors":[{"description":"","maximum":100000000.0,"minimum":-273.15,"name":"Temperature","reference":"T","unit":{"readingTypeName":"TEMPERATURE","symbol":"℃"}},
-{"description":"3","maximum":20000.0,"minimum":0.0,"name":"Acceleration","reference":"ACCELEROMETER_REF","unit":{"readingTypeName":"ACCELEROMETER","symbol":"m/s²"}}],
-    "name":"DEVICE_MANIFEST_NAME_1",
-    "description":"DEVICE_MANIFEST_DESCRIPTION_1",
-    "protocol":"JsonProtocol",
-    "firmwareUpdateType":"DFU",
-"firmwareUpdateParameters":{},
-"connectivityParameters":{},
-"typeParameters":{}}
+  "name": "test_gateway_name",
+  "key": "test_gateway_key",
+  "password": "",
+  "platformMqttUri": "ssl://10.0.50.90:8883",
+  "localMqttUri": "tcp://localhost:1883",
+  "platformTrustStore": "ca.crt",
+  "subdeviceManagement": "gateway",
+  "readingsInterval": 5000,
+  "generator": "incremental",
+  "manifest": {
+    "actuators": [
+      {
+        "name": "Slider",
+        "reference": "SL",
+        "description": "Light dimmer",
+        "maximum": 115.0,
+        "minimum": 0.0,
+        "unit": {
+          "readingTypeName": "COUNT(ACTUATOR)",
+          "symbol": "count"
+        }
+      },
+      {
+        "name": "Switch",
+        "description": "Light switch",
+        "reference": "SW",
+        "maximum": null,
+        "minimum": null,
+        "unit": {
+          "readingTypeName": "SWITCH(ACTUATOR)",
+          "symbol": ""
+        }
+      },
+      {
+        "name": "Message",
+        "reference": "MSG",
+        "description": "Text",
+        "maximum": null,
+        "minimum": null,
+        "unit": {
+          "readingTypeName": "STRING(ACTUATOR)",
+          "symbol": ""
+        }
+      }
+    ],
+    "alarms": [
+      {
+        "description": "",
+        "name": "High Humidity",
+        "reference": "HH"
+      }
+    ],
+    "configurations": [
+      {
+        "name": "Item1",
+        "reference": "KEY_1",
+        "defaultValue": "value1",
+        "dataType": "STRING",
+        "description": "",
+        "labels": null,
+        "maximum": null,
+        "minimum": null,
+        "size": 1
+      },
+      {
+        "dataType": "NUMERIC",
+        "defaultValue": "5",
+        "description": "",
+        "labels": [
+          "x",
+          "y",
+          "z"
+        ],
+        "maximum": 100.0,
+        "minimum": 0.0,
+        "name": "Item2",
+        "reference": "KEY_2",
+        "size": 3
+      },
+      {
+        "dataType": "BOOLEAN",
+        "defaultValue": "false",
+        "description": "",
+        "labels": null,
+        "maximum": null,
+        "minimum": null,
+        "name": "Item3",
+        "reference": "KEY_3",
+        "size": 1
+      }
+    ],
+    "sensors": [
+      {
+        "name": "Temperature",
+        "reference": "T",
+        "description": "",
+        "maximum": 100000000.0,
+        "minimum": -273.15,
+        "unit": {
+          "readingTypeName": "TEMPERATURE",
+          "symbol": "℃"
+        }
+      },
+      {
+        "name": "Acceleration",
+        "reference": "ACCELEROMETER_REF",
+        "description": "",
+        "maximum": 20000.0,
+        "minimum": 0.0,
+        "unit": {
+          "readingTypeName": "ACCELEROMETER",
+          "symbol": "m/s²"
+        }
+      }
+    ],
+    "name": "DEVICE_MANIFEST_NAME_1",
+    "description": "DEVICE_MANIFEST_DESCRIPTION_1",
+    "firmwareUpdateType": "DFU",
+    "typeParameters": {},
+    "connectivityParameters": {},
+    "firmwareUpdateParameters": {
+      "supportsFirmwareUpdate": true,
+      "supportsFileDownload": true,
+      "supportsFileURL": false
+    }
+  }
 }
