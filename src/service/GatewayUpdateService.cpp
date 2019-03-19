@@ -99,8 +99,14 @@ void GatewayUpdateService::updateGateway(const DetailedDevice& device)
     auto savedGateway = m_deviceRepository.findByDeviceKey(device.getKey());
     auto newGateway =
       std::unique_ptr<DetailedDevice>(new DetailedDevice(device.getName(), device.getKey(), device.getTemplate()));
-    if (savedGateway && *savedGateway == *newGateway)
+    if (savedGateway)
     {
+        if (*savedGateway != *newGateway)
+        {
+            LOG(ERROR) << "GatewayUpdateService: Gateway update already performed, ignoring changes to device template";
+            return;
+        }
+
         LOG(INFO) << "GatewayUpdateService: Ignoring gateway update. Already registered with given device info and "
                      "device template";
         return;
@@ -181,6 +187,10 @@ void GatewayUpdateService::handleUpdateResponse(const GatewayUpdateResponse& res
             else if (updateResult == GatewayUpdateResponse::Result::ERROR_SUBDEVICE_MANAGEMENT_CHANGE_NOT_ALLOWED)
             {
                 return "Changing subdevice management is not allowed";
+            }
+            else if (updateResult == GatewayUpdateResponse::Result::ERROR_GATEWAY_UPDATE_FORBIDDEN)
+            {
+                return "Performing gateway update is not allowed more than once";
             }
             else if (updateResult == GatewayUpdateResponse::Result::ERROR_UNKNOWN)
             {

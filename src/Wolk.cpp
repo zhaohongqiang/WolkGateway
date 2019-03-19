@@ -305,7 +305,7 @@ void Wolk::notifyPlatformConnected()
     static bool shouldUpdate = true;
     if (shouldUpdate)
     {
-        // register gateway upon first connect
+        // update gateway upon first connect
         m_gatewayUpdateService->updateGateway(m_device);
         shouldUpdate = false;
 
