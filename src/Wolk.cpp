@@ -20,12 +20,16 @@
 #include "persistence/Persistence.h"
 #include "protocol/DataProtocol.h"
 #include "protocol/GatewayDataProtocol.h"
-#include "protocol/GatewayFileDownloadProtocol.h"
 #include "protocol/GatewayFirmwareUpdateProtocol.h"
 #include "protocol/GatewayStatusProtocol.h"
 #include "protocol/GatewaySubdeviceRegistrationProtocol.h"
+#include "protocol/RegistrationProtocol.h"
+#include "protocol/StatusProtocol.h"
+#include "protocol/json/JsonDFUProtocol.h"
+#include "protocol/json/JsonDownloadProtocol.h"
 #include "repository/DeviceRepository.h"
 #include "repository/ExistingDevicesRepository.h"
+#include "repository/FileRepository.h"
 #include "service/DataService.h"
 #include "service/DeviceStatusService.h"
 #include "service/FileDownloadService.h"
@@ -54,7 +58,7 @@ const constexpr std::chrono::seconds Wolk::KEEP_ALIVE_INTERVAL;
 
 WolkBuilder Wolk::newBuilder(GatewayDevice device)
 {
-    return WolkBuilder(device);
+    return WolkBuilder(std::move(device));
 }
 
 void Wolk::connect()
@@ -309,13 +313,18 @@ void Wolk::notifyPlatformConnected()
         m_gatewayUpdateService->updateGateway(m_device);
         shouldUpdate = false;
 
-        if (m_subdeviceRegistrationService)
+        if (m_subdeviceRegistrationService && m_device.getSubdeviceManagement().value() == SubdeviceManagement::GATEWAY)
         {
             m_subdeviceRegistrationService->deleteDevicesOtherThan(m_existingDevicesRepository->getDeviceKeys());
         }
     }
 
     requestActuatorStatusesForDevices();
+
+    if (m_fileDownloadService)
+    {
+        m_fileDownloadService->sendFileList();
+    }
 }
 
 void Wolk::notifyPlatformDisonnected()

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 WolkAbout Technology s.r.o.
+ * Copyright 2019 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,24 @@
  * limitations under the License.
  */
 
-#ifndef WOLK_VERSION_H
-#define WOLK_VERSION_H
+#include "protocol/GatewayProtocol.h"
+#include "utilities/StringUtils.h"
 
-#define WOLK_CONNECT_VERSION_MAJOR 3
-#define WOLK_CONNECT_VERSION_MINOR 0
-#define WOLK_CONNECT_VERSION_PATCH 0
+namespace wolkabout
+{
+std::string GatewayProtocol::extractDeviceKeyFromChannel(const std::string& topic) const
+{
+    std::string previousToken;
+    for (std::string token : StringUtils::tokenize(topic, "/"))
+    {
+        if (previousToken == "d")
+        {
+            return token;
+        }
 
-#endif
+        previousToken = token;
+    }
+
+    return "";
+}
+}    // namespace wolkabout
