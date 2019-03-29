@@ -123,8 +123,9 @@ class BasicUrlFileDownloader : public wolkabout::UrlFileDownloader
 public:
     void download(
       const std::string& url, const std::string& downloadDirectory,
-      std::function<void(const std::string& url, const std::string& filePath)> onSuccessCallback,
-      std::function<void(const std::string& url, UrlFileDownloader::Error errorCode)> onFailCallback) override
+      std::function<void(const std::string& url, const std::string& fileName, const std::string& filePath)>
+        onSuccessCallback,
+      std::function<void(const std::string& url, wolkabout::FileTransferError errorCode)> onFailCallback) override
     {
         if (wolkabout::FileSystemUtils::isFilePresent(url))
         {
@@ -136,13 +137,13 @@ public:
                   downloadDirectory + "/new_firmware_file" + std::to_string(++firmwareFileNum);
                 if (wolkabout::FileSystemUtils::createBinaryFileWithContent(filePath, content))
                 {
-                    onSuccessCallback(url, filePath);
+                    onSuccessCallback(url, "new_firmware_file", filePath);
                     return;
                 }
             }
         }
 
-        onFailCallback(url, Error::UNSPECIFIED_ERROR);
+        onFailCallback(url, wolkabout::FileTransferError::UNSPECIFIED_ERROR);
     }
 
     void abort(const std::string& url) override {}
@@ -298,9 +299,16 @@ int main(int argc, char** argv, char** envp)
         builder.platformTrustStore(gatewayConfiguration.getPlatformTrustStore().value());
     }
 
-    if (!gatewayConfiguration.getDevice().getTemplate().getFirmwareUpdateType().empty())
+    if (!gatewayConfiguration.getDevice().getTemplate().getFirmwareUpdateType().empty() &&
+        gatewayConfiguration.getDevice().getFirmwareUpdate() &&
+        gatewayConfiguration.getDevice().getFirmwareUpdate().value())
     {
-        builder.withFirmwareUpdate(firmwareVersion, installer, ".", 10 * 1024 * 1024, 1024, urlDownloader);
+        builder.withFirmwareUpdate(firmwareVersion, installer);
+    }
+
+    if (gatewayConfiguration.getDevice().getUrlDownload() && gatewayConfiguration.getDevice().getUrlDownload().value())
+    {
+        builder.withUrlFileDownload(urlDownloader);
     }
 
     std::unique_ptr<wolkabout::Wolk> wolk = builder.build();

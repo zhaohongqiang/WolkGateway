@@ -408,6 +408,7 @@ void FileDownloadService::purgeFiles()
         if (!info)
         {
             LOG(ERROR) << "File info missing for file: " << name << ",  can't delete";
+            continue;
         }
 
         LOG(INFO) << "Deleting file: " << info->path;
@@ -523,8 +524,6 @@ void FileDownloadService::downloadCompleted(const std::string& fileName, const s
         m_fileRepository.store(FileInfo{fileName, fileHash, filePath});
         sendStatus(FileUploadStatus{fileName, FileTransferStatus::FILE_READY});
     });
-
-    sendFileList();
 }
 
 void FileDownloadService::downloadFailed(const std::string& fileName, FileTransferError errorCode)
@@ -532,8 +531,6 @@ void FileDownloadService::downloadFailed(const std::string& fileName, FileTransf
     flagCompletedDownload(fileName);
 
     sendStatus(FileUploadStatus{fileName, errorCode});
-
-    sendFileList();
 }
 
 void FileDownloadService::urlDownloadCompleted(const std::string& fileUrl, const std::string& fileName,
@@ -555,15 +552,11 @@ void FileDownloadService::urlDownloadCompleted(const std::string& fileUrl, const
         m_fileRepository.store(FileInfo{fileName, hashStr, filePath});
         sendStatus(FileUrlDownloadStatus{fileUrl, fileName});
     });
-
-    sendFileList();
 }
 
 void FileDownloadService::urlDownloadFailed(const std::string& fileUrl, FileTransferError errorCode)
 {
     sendStatus(FileUrlDownloadStatus{fileUrl, errorCode});
-
-    sendFileList();
 }
 
 void FileDownloadService::addToCommandBuffer(std::function<void()> command)
