@@ -228,15 +228,6 @@ void DataService::routePlatformToGatewayMessage(std::shared_ptr<Message> message
 {
     LOG(TRACE) << METHOD_INFO;
 
-    const std::string channel = m_gatewayProtocol.routePlatformToGatewayMessage(message->getChannel());
-    if (channel.empty())
-    {
-        LOG(WARN) << "Failed to route platform message: " << message->getChannel();
-        return;
-    }
-
-    const std::shared_ptr<Message> routedMessage{new Message(message->getContent(), channel)};
-
     if (m_gatewayDevice)
     {
         m_gatewayDevice->messageReceived(message);
