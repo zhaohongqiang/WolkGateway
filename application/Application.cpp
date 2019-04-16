@@ -313,6 +313,8 @@ int main(int argc, char** argv, char** envp)
     std::random_device rd;
     std::mt19937 mt(rd());
 
+    auto sleepPeriod = std::chrono::milliseconds(gatewayConfiguration.getInterval());
+
     while (true)
     {
         for (const auto& sensor : gatewayConfiguration.getDevice().getTemplate().getSensors())
@@ -363,11 +365,11 @@ int main(int argc, char** argv, char** envp)
             }
 
             wolk->addSensorReading(sensor.getReference(), values);
+
+            wolk->publish();
+
+            std::this_thread::sleep_for(sleepPeriod);
         }
-
-        wolk->publish();
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(gatewayConfiguration.getInterval()));
     }
 
     return 0;
